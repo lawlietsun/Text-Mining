@@ -1,29 +1,49 @@
 setwd("~/Google Drive/MSc Data Analytics/Core/CS909 Data Mining/exercises/exercise8")
 
-# mydata <- read.delim2("reuters.tsv", quote = "")
-
 mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
 
 r <- nrow(mydata)
 c <- ncol(mydata)
 
-# str(mydata)
-# 
-# readLines("reuters.tsv")[10]
-
-# Pre-Prosessing
-require("NLP")
-s <- mydata[1,140]
-s <- as.String(s)
-
+##### Pre-Prosessing ##### 
 
 install.packages("openNLPmodels.en", repos = "http://datacube.wu.ac.at/", type = "source")
+install.packages("tm")
 
+require("NLP")
+require("tm")
 require("openNLP")
 require("NLP")
 require("openNLPmodels.en")
 
+rmdata <- mydata
+
+# remove rows that have no 1s (the topic has no text belong to)
+rnrow <- c()
+for(i in 1:c){
+  if(is.integer(mydata[,i])){
+    if(sum(mydata[,i]) == 0){
+      rnrow <- c(rnrow,i)
+    }
+  }
+}
+rmdata <- mydata[,-rnrow]
+
+# remove cols that have no 1s (the text has no topic belong to)
+rncol <- c()
+for(j in 1:r){
+  if(sum(rmdata[j,4:121]) == 0){
+    rncol <- c(rncol,j)
+  }
+}
+rmdata <- rmdata[-rncol,]
+
 # 1. Tokenize: divide into words (unigrams)
+
+
+s <- mydata[2,140]
+s <- as.String(s)
+
 s <- String(" First sentence. Second sentence. ")
 spans <- whitespace_tokenizer(s)
 spans <- wordpunct_tokenizer(s)
