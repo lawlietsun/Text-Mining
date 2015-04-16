@@ -38,26 +38,72 @@ for(j in 1:r){
 }
 rmdata <- rmdata[-rncol,]
 
+
+s <-rmdata[1,123]
+s <- as.String(s)
+# 3. 
+# Replace Link
+# x <- "asdfsd sfkdak dksfa sdfsdkf asd fasdf asdf . fsa http://stat.umn.edu:80/xyz , sdfasdf,sdf,asdfasd sdfasdf,"
+s <- gsub("http\\S+\\s*", "LINK", s)
+
+# Remove puncuation
+s <- gsub("/", " ", s) 
+s <- gsub("[^[:alnum:][:space:]']", "", s)
+
+## Need sentence and word token annotations.
+sent_token_annotator <- Maxent_Sent_Token_Annotator()
+word_token_annotator <- Maxent_Word_Token_Annotator()
+a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
+
+# sent_token_annotator <- Maxent_Sent_Token_Annotator()
+# word_token_annotator <- Maxent_Word_Token_Annotator()
+# a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
+pos_tag_annotator <- Maxent_POS_Tag_Annotator()
+pos_tag_annotator
+a2 <- annotate(s, pos_tag_annotator, a2)
+a2
+
+
+## Entity recognition for persons.
+# entity_annotator <- Maxent_Entity_Annotator(kind = "date")
+entity_annotator <- Maxent_Entity_Annotator(kind = "organization")
+entity_annotator(s,a2)
+t <- s[entity_annotator(s,a2)]
+annotate(s, entity_annotator, a2)
+for(i in 1:length(t)){
+  s <- gsub(t[i], "ORG", s)
+}
+
+a2w <- subset(a2, type == "word")
+tags <- sapply(a2w$features, `[[`, "POS")
+tags
+table(tags)
+
+# Repalce Num
+s <- gsub("[[:digit:]]+", "NUM", s)
+
 # 1. Tokenize: divide into words (unigrams)
 
-
-s <- mydata[2,140]
-s <- as.String(s)
-
-s <- String(" First sentence. Second sentence. ")
 spans <- whitespace_tokenizer(s)
-spans <- wordpunct_tokenizer(s)
+# spans <- wordpunct_tokenizer(s)
 spans
 s[spans]
 
+install.packages("koRpus")
+require("koRpus")
+tagged.results <- treetag(c("run", "ran", "running"), treetagger="manual", format="obj",
+                          TT.tknz=FALSE , lang="en",
+                          TT.options=list(path="./TreeTagger", preset="en"))
+tagged.results@TT.res
+
+setDict("/Users/yuesun/Downloads/dict/")
+
+filter <- getTermFilter("StartsWithFilter", "running", TRUE)
+terms <- getIndexTerms("NOUN", 5, filter)
+sapply(terms, getLemma)
+
+
 require("NLP")
-## Some text.
-s <- paste(c("Pierre Vinken, 61 years old, will join the board as a ",
-             "nonexecutive director Nov. 29.\n",
-             "Mr. Vinken is chairman of Elsevier N.V., ",
-             "the Dutch publishing group."),
-           collapse = "")
-s <- as.String(s)
 ## Need sentence and word token annotations.
 sent_token_annotator <- Maxent_Sent_Token_Annotator()
 word_token_annotator <- Maxent_Word_Token_Annotator()
@@ -66,14 +112,13 @@ pos_tag_annotator <- Maxent_POS_Tag_Annotator()
 pos_tag_annotator
 a3 <- annotate(s, pos_tag_annotator, a2)
 a3
-## Variant with POS tag probabilities as (additional) features.
-head(annotate(s, Maxent_POS_Tag_Annotator(probs = TRUE), a2))
 
 ## Determine the distribution of POS tags for word tokens.
 a3w <- subset(a3, type == "word")
 tags <- sapply(a3w$features, `[[`, "POS")
 tags
 table(tags)
+
 ## Extract token/POS pairs (all of them): easy.
 sprintf("%s/%s", s[a3w], tags)
 ## Extract pairs of word tokens and POS tags for second sentence:
