@@ -46,28 +46,56 @@ my_data <- read.csv(file="cleanedData.csv",header=T,sep=",")
 
 s <-my_data[1,123]
 s <- as.String(s)
-# 3. 
-# Replace Link
-# x <- "asdfsd sfkdak dksfa sdfsdkf asd fasdf asdf . fsa http://stat.umn.edu:80/xyz , sdfasdf,sdf,asdfasd sdfasdf,"
-s <- gsub("http\\S+\\s*", "LINK", s)
+s <- "I am so excited by the great robot designs from the Newsround audience! http://www.bbc.co.uk/i/b03x47dm/ Send in your design: http://www.bbc.co.uk/newsround/26490802"
 
-# Remove puncuation
-s <- gsub("/", " ", s) 
-s <- gsub("[^[:alnum:][:space:]']", "", s)
+##### 1. Tokenize: divide into words (unigrams)
+
+s <- gsub("/", " ", s)  # replace / to space 
+spans <- whitespace_tokenizer(s)
+# spans <- wordpunct_tokenizer(s)
+spans
+tokens <- s[spans]
+
+##### 2. Remove punctuation, replace links
+
+tokens <- gsub("[^[:alnum:][:space:]']", "", tokens)
+tokens <- gsub("http\\S+\\s*", "LINK", tokens)
+
+##### 3. POS tagging & Lemmatisation
+
+# sent_token_annotator <- Maxent_Sent_Token_Annotator()
+# word_token_annotator <- Maxent_Word_Token_Annotator()
+# a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
+# 
+# pos_tag_annotator <- Maxent_POS_Tag_Annotator()
+# a2 <- annotate(tokens, pos_tag_annotator, a2)
+# a2
+
+tagged.results <- treetag(tokens, treetagger="manual", format="obj",
+                          lang="en",
+                          stopwords = tm::stopwords("SMART"),
+                          TT.options=list(path="./tree-tagger", preset="en"))
+
+lemma <- tagged.results@TT.res$lemma
+tagged.results@TT.res[which]
+
+##### 4. Remove stop words:
+
+rmtokens <- tagged.results@TT.res[which(tagged.results@TT.res$tag == "PP" |
+                                          tagged.results@TT.res$tag == "DT" | 
+                                          tagged.results@TT.res$tag == "IN" | 
+                                          tagged.results@TT.res$tag == "PP$"),]
+
+lemma[c(-as.numeric(row.names(rmtokens)))]
 
 ## Need sentence and word token annotations.
 sent_token_annotator <- Maxent_Sent_Token_Annotator()
 word_token_annotator <- Maxent_Word_Token_Annotator()
 a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
-
-# sent_token_annotator <- Maxent_Sent_Token_Annotator()
-# word_token_annotator <- Maxent_Word_Token_Annotator()
-# a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
 pos_tag_annotator <- Maxent_POS_Tag_Annotator()
 pos_tag_annotator
 a2 <- annotate(s, pos_tag_annotator, a2)
 a2
-
 
 ## Entity recognition for persons.
 # entity_annotator <- Maxent_Entity_Annotator(kind = "date")
@@ -87,35 +115,22 @@ table(tags)
 # Repalce Num
 s <- gsub("[[:digit:]]+", "NUM", s)
 
-# 1. Tokenize: divide into words (unigrams)
-
-spans <- whitespace_tokenizer(s)
-# spans <- wordpunct_tokenizer(s)
-spans
-s[spans]
 
 
-tagged.results <- treetag(c("run", "ran", "running"), treetagger="manual", format="obj",
-                          TT.tknz=FALSE , lang="en",
-                          TT.options=list(path="./tree-tagger", preset="en"))
-tagged.results@TT.res$lemma
+# setDict("/Users/yuesun/Downloads/dict/")
+# 
+# filter <- getTermFilter("StartsWithFilter", "car", TRUE)
+# terms <- getIndexTerms("NOUN", 5, filter)
+# sapply(terms, getLemma)
 
-setDict("/Users/yuesun/Downloads/dict/")
-
-filter <- getTermFilter("StartsWithFilter", "running", TRUE)
-terms <- getIndexTerms("NOUN", 5, filter)
-sapply(terms, getLemma)
-
-
-require("NLP")
 ## Need sentence and word token annotations.
-sent_token_annotator <- Maxent_Sent_Token_Annotator()
-word_token_annotator <- Maxent_Word_Token_Annotator()
-a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
-pos_tag_annotator <- Maxent_POS_Tag_Annotator()
-pos_tag_annotator
-a3 <- annotate(s, pos_tag_annotator, a2)
-a3
+# sent_token_annotator <- Maxent_Sent_Token_Annotator()
+# word_token_annotator <- Maxent_Word_Token_Annotator()
+# a2 <- annotate(s, list(sent_token_annotator, word_token_annotator))
+# pos_tag_annotator <- Maxent_POS_Tag_Annotator()
+# pos_tag_annotator
+# a3 <- annotate(s, pos_tag_annotator, a2)
+# a3
 
 ## Determine the distribution of POS tags for word tokens.
 a3w <- subset(a3, type == "word")
