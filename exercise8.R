@@ -9,12 +9,14 @@ c <- ncol(mydata)
 
 install.packages("openNLPmodels.en", repos = "http://datacube.wu.ac.at/", type = "source")
 install.packages("tm")
+install.packages("koRpus")
 
 require("NLP")
 require("tm")
 require("openNLP")
 require("NLP")
 require("openNLPmodels.en")
+require("koRpus")
 
 rmdata <- mydata
 
@@ -38,8 +40,11 @@ for(j in 1:r){
 }
 rmdata <- rmdata[-rncol,]
 
+write.csv(rmdata, file = "cleanedData.csv", row.names=F)
 
-s <-rmdata[1,123]
+my_data <- read.csv(file="cleanedData.csv",header=T,sep=",")
+
+s <-my_data[1,123]
 s <- as.String(s)
 # 3. 
 # Replace Link
@@ -89,12 +94,11 @@ spans <- whitespace_tokenizer(s)
 spans
 s[spans]
 
-install.packages("koRpus")
-require("koRpus")
+
 tagged.results <- treetag(c("run", "ran", "running"), treetagger="manual", format="obj",
                           TT.tknz=FALSE , lang="en",
-                          TT.options=list(path="./TreeTagger", preset="en"))
-tagged.results@TT.res
+                          TT.options=list(path="./tree-tagger", preset="en"))
+tagged.results@TT.res$lemma
 
 setDict("/Users/yuesun/Downloads/dict/")
 
