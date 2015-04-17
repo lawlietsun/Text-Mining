@@ -44,10 +44,6 @@ rmdata <- rmdata[-rncol,]
 
 write.csv(rmdata, file = "cleanedData.csv", row.names=F)
 
-write.csv(my_data, file = "cleanedDatav2.csv", row.names=F)
-
-write.csv(my_data, file = "cleanedDatav3.csv", row.names=F)
-
 my_data <- read.csv(file="cleanedDatav2.csv",header=T,sep=",")
 
 my_data[, "cleaned.title"] <- NA
@@ -71,33 +67,31 @@ for(ii in 1:r){
     s <- my_data[ii,123]
     s <- as.String(s)
     
-    ##### 1. Tokenize: divide into words (unigrams)
+    # 1. Tokenize: divide into words (unigrams)
     
     s <- gsub("/", " ", s)  # replace / to space 
     spans <- whitespace_tokenizer(s)
     tokens <- s[spans]
     
-    ##### 2. Remove punctuation, replace links
+    # 2. Remove punctuation, replace links
     
     tokens <- gsub("[^[:alnum:][:space:]']", "", tokens)
     tokens <- gsub("http\\S+\\s*", "LINK", tokens)
     
-    ##### 3. POS tagging & Lemmatisation
+    # 3. POS tagging & Lemmatisation
         
     tagged.results <- treetag(tokens, treetagger="manual", format="obj",
                               lang="en",
-                              #                           TT.tknz = TRUE,
                               stopwords = tm::stopwords("SMART"),
                               stemmer = SnowballC::wordStem,
                               TT.options=list(path="./tree-tagger", preset="en"))
     
     lemma <- tagged.results@TT.res$lemma
     
-    ##### 4. Remove stop words
+    # 4. Remove stop words
     
     non_stopwords <- tagged.results@TT.res[which(tagged.results@TT.res$stop == FALSE),]
     
-    # nrow(non_stopwords)
     for(i in 1:nrow(non_stopwords)){
       if(non_stopwords$lemma[i] == "@card@"){
         non_stopwords$lemma[i] <- non_stopwords$stem[i]
@@ -107,7 +101,7 @@ for(ii in 1:r){
       }
     }
     
-    ##### 5. NE recognition:
+    # 5. NE recognition:
     
     ss <- paste(non_stopwords$lemma, collapse = " ")
     ss <- as.String(ss)
@@ -177,6 +171,8 @@ for(ii in 1:r){
     print(ii)
   }
 }
+
+write.csv(my_data, file = "cleanedDatav4.csv", row.names=F)
 
 ###################################
 
