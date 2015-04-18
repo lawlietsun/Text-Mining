@@ -12,6 +12,7 @@ install.packages("tm")
 install.packages("koRpus")
 install.packages("SnowballC")
 install.packages("topicmodels")
+install.packages("randomForest")
 
 require("NLP")
 require("tm")
@@ -213,6 +214,8 @@ for(i in 1: 11340){
 
 #######
 
+aa <- my_data
+
 doc.vec <- VectorSource(my_data[,126])
 doc.corpus <- Corpus(doc.vec)
 dtm <- DocumentTermMatrix(doc.corpus)
@@ -226,15 +229,15 @@ inspect(dtm2[10:15,100:110])
 featureMx <- inspect(dtm2)
 featureMx[1:40,1:10]
 
-tf <- matrix(0,11340,136)
+# tf <- matrix(0,11340,136)
+# 
+# for(i in 1:11340){
+#   for(j in 1:136){
+#     tf[i,j] <- featureMx[i,j] / max(featureMx[,j])
+#   }
+# }
 
-for(i in 1:11340){
-  for(j in 1:136){
-    tf[i,j] <- featureMx[i,j] / max(featureMx[,j])
-  }
-}
-
-tf2 <- featureMx
+tf2 <- featureMx * 0
 
 for(i in 1:11340){
   for(j in 1:136){
@@ -245,6 +248,7 @@ for(i in 1:11340){
 
 
 df = matrix(0,1,136)
+
 for(j in 1:136){
   doc = 0
   for(i in 1:11340){
@@ -253,25 +257,29 @@ for(j in 1:136){
     }
   }
   df[1,j] <- doc
+  print(j)
 }
 
 idf = matrix(0,1,136)
 for(j in 1:136){
  idf[1,j] <- log2(11340/df[1,j])
+ print(j)
 }
 
-ttf <- tf2
+ttf <- featureMx * 0
 for(i in 1:11340){
-  ttf[i,] <- ttf[i,] * idf
+  ttf[i,] <- tf2[i,] * idf
+  print(i)
 }
 
 tfidf <- ttf
 
 write.table(tfidf, file = "tfidf", row.names = TRUE, col.names = TRUE)
-write.csv(tfidf, file = "tfidf.csv", row.names=F)
+write.csv(tfidf, file = "tfidf2.csv", row.names=F)
 
+tfidf <- read.csv(file = "tfidf.csv")
 
-features <- findFreqTerms(dtm2)
+# features <- findFreqTerms(dtm2)
 # doc <- my_data[1,126]
 # doc <- as.String(doc)
 # spans <- whitespace_tokenizer(doc)
@@ -313,66 +321,99 @@ for(i in 1:136){
     sm[1,i] <- sum(tfidf[,i])
 }
 
-med <- median(sm[1,])
-aaa <- tfidf[,-which(sm < med)]
+med <- median(sm[1,]) ####$%^&^$%*&^&(*_%$#*(&^_))
+featureselected <- tfidf[,-which(sm < med)]
 
-##############
-colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-noofcol <- c()
-for(i in 1:length(colname)){
-  noofcol <- c(noofcol, which(colnames(my_data) == colname[i]))
-}
-
-df <- cbind(my_data[,noofcol], aaa)
-train <- df[which(my_data$purpose == "train"),]
-test <- df[which(my_data$purpose == "test"),]
-
-
-# topic.money.fx
-moneyfx <- svm(topic.money.fx ~ ., data = train, scale=F)
-p <- predict(moneyfx, newdata = test)
-for (i in 1:length(p)){
-  if(p[i]>=0.5){
-    p[i] <- 1    
-  }else{
-    p[i] <- 0    
-  }
-}
-t <- table(round(p), test$topic.money.fx)
-acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
-
-grain <- svm(topic.grain ~ ., data = train)
-p <- predict(grain, newdata = test)
-for (i in 1:length(p)){
-  if(p[i]>=0.5){
-    p[i] <- 1    
-  }else{
-    p[i] <- 0    
-  }
-}
-t <- table(round(p), test$topic.grain)
-acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
-
-
-acq <- svm(topic.acq ~ ., data = train)
-p <- predict(acq, newdata = test)
-for (i in 1:length(p)){
-  if(p[i]>=0.5){
-    p[i] <- 1    
-  }else{
-    p[i] <- 0    
-  }
-}
-t <- table(round(p), test$topic.acq)
-acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+write.csv(featureselected, file = "featureselected.csv", row.names=F)
+featureselected <- read.csv(file = "featureselected.csv")
 
 
 ##############
+colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+             "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
 
-earn <- naiveBayes(topic.earn ~., data = train)
-p <- predict(earn, newdata = test)
-table(p, test$topic.earn)
+top10 <- cbind(featureselected, my_data[colname])
 
+# top10 <- as.factor(top10)
+
+# top10[,69]
+
+train <- top10[which(my_data$purpose == "train"),]
+test <- top10[which(my_data$purpose == "test"),]
+
+trainx <- train[1:68]
+trainy <- train[69:78]
+testx <- test[1:68]
+testy <- test[69:78]
+
+for(i in 1:10){
+  colnames(trainy)[i] = "class"
+  colnames(testy)[i] = "class"
+}
+
+write.csv(top10, file = "top10v2.csv", row.names=F)
+
+# SVM
+
+for(i in 1:10){
+  
+  train1 <- cbind(trainx,trainy[i])
+  train1[,69] <- as.factor(train1[,69])
+  
+  test1 <- cbind(testx,testy[i])
+  test1[,69] <- as.factor(test1[,69])
+  
+  model <- svm(train1$class ~ ., data = train1, scale=F)
+  p <- predict(model, test1[,-ncol(test1)])
+  t <- table(p, test1$class)
+  acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  print(colname[i])
+  print(t)
+  print(acc)
+  cat("-------------------\n")
+}
+
+
+# naiveBayes
+
+for(i in 1:10){
+  
+  train1 <- cbind(trainx,trainy[i])
+  train1[,69] <- as.factor(train1[,69])
+  
+  test1 <- cbind(testx,testy[i])
+  test1[,69] <- as.factor(test1[,69])
+  
+  model <- naiveBayes(train1$class ~ ., data = train1)
+  p <- predict(model, test1[,-ncol(test1)])
+  t <- table(p, test1$class)
+  acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  print(colname[i])
+  print(t)
+  print(acc)
+  cat("-------------------\n")
+}
+
+
+# naiveBayes
+
+for(i in 1:10){
+  
+  train1 <- cbind(trainx,trainy[i])
+  train1[,69] <- as.factor(train1[,69])
+  
+  test1 <- cbind(testx,testy[i])
+  test1[,69] <- as.factor(test1[,69])
+  
+  model <- naiveBayes(train1$class ~ ., data = train1)
+  p <- predict(model, test1[,-ncol(test1)])
+  t <- table(p, test1$class)
+  acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  print(colname[i])
+  print(t)
+  print(acc)
+  cat("-------------------\n")
+}
 
 ##############
 
