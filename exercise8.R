@@ -1,12 +1,5 @@
 setwd("~/Google Drive/MSc Data Analytics/Core/CS909 Data Mining/exercises/exercise8")
 
-mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
-
-r <- nrow(mydata)
-c <- ncol(mydata)
-
-##### Pre-Prosessing ##### 
-
 install.packages("openNLPmodels.en", repos = "http://datacube.wu.ac.at/", type = "source")
 install.packages("tm")
 install.packages("koRpus")
@@ -23,6 +16,17 @@ require("koRpus")
 require("SnowballC")
 require("topicmodels")
 require("e1071")
+require("randomForest")
+
+mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
+my_data <- read.csv(file="finalclean.csv",header=T,sep=",")
+tfidf <- read.csv(file = "tfidf.csv")
+featureselected <- read.csv(file = "featureselected.csv")
+
+################### Tasks 1 : Pre-Prosessing ################### 
+
+r <- nrow(mydata)
+c <- ncol(mydata)
 
 rmdata <- mydata
 
@@ -46,9 +50,7 @@ for(j in 1:r){
 }
 rmdata <- rmdata[-rncol,]
 
-write.csv(rmdata, file = "cleanedData.csv", row.names=F)
-
-my_data <- read.csv(file="finalclean.csv",header=T,sep=",")
+# write.csv(rmdata, file = "cleanedData.csv", row.names=F)
 
 my_data[, "cleaned.title"] <- NA
 my_data[, "cleaned.text"] <- NA
@@ -176,9 +178,7 @@ for(ii in 1:r){
   }
 }
 
-write.csv(my_data, file = "cleanedDatav6.csv", row.names=F)
-
-###################################
+# write.csv(my_data, file = "cleanedDatav6.csv", row.names=F)
 
 # check NA
 which((which(my_data[,122] == "") == which(is.na(my_data[,124]))) == FALSE)
@@ -201,7 +201,7 @@ for(i in 1:11340){
   }
 }
 
-######## combine text and title
+# combine text and title
 my_data[, "doc.title.text.cleaned"] <- NA
 
 for(i in 1: 11340){
@@ -212,30 +212,20 @@ for(i in 1: 11340){
   my_data[i,126] <- s3
 }
 
-#######
+################### Tasks 2 : Feature representations ################### 
 
-aa <- my_data
-
+# aa <- my_data
 doc.vec <- VectorSource(my_data[,126])
 doc.corpus <- Corpus(doc.vec)
 dtm <- DocumentTermMatrix(doc.corpus)
 
-inspect(dtm[1:5,1:10])
-findFreqTerms(dtm, lowfreq = 2000, highfreq = 3000)
-findAssocs(dtm,'opec',0.5)
+# inspect(dtm[1:5,1:10])
+# findFreqTerms(dtm, lowfreq = 2000, highfreq = 3000)
+# findAssocs(dtm,'opec',0.5)
 dtm2 <- removeSparseTerms(dtm,sparse=0.95)
-inspect(dtm2[10:15,100:110])
+# inspect(dtm2[10:15,100:110])
 
 featureMx <- inspect(dtm2)
-featureMx[1:40,1:10]
-
-# tf <- matrix(0,11340,136)
-# 
-# for(i in 1:11340){
-#   for(j in 1:136){
-#     tf[i,j] <- featureMx[i,j] / max(featureMx[,j])
-#   }
-# }
 
 tf2 <- featureMx * 0
 
@@ -245,7 +235,6 @@ for(i in 1:11340){
   }
   print(i)
 }
-
 
 df = matrix(0,1,136)
 
@@ -274,37 +263,7 @@ for(i in 1:11340){
 
 tfidf <- ttf
 
-write.table(tfidf, file = "tfidf", row.names = TRUE, col.names = TRUE)
 write.csv(tfidf, file = "tfidf2.csv", row.names=F)
-
-tfidf <- read.csv(file = "tfidf.csv")
-
-# features <- findFreqTerms(dtm2)
-# doc <- my_data[1,126]
-# doc <- as.String(doc)
-# spans <- whitespace_tokenizer(doc)
-# tokens <- doc[spans]
-
-# terms = 0
-# for(i in 1:length(tokens)){
-#   for(j in 1:length(features)){
-#     if(tokens[i] == features[j]){
-#       terms = terms + 1
-#     }
-#   }
-# }
-
-x <- 1
-for(i in 1:11340){
-  if(x < length(sort(tfidf[i,], decreasing = T)[which(sort(tfidf[i,], decreasing = T) != 0)])){
-    x <- length(sort(tfidf[i,], decreasing = T)[which(sort(tfidf[i,], decreasing = T) != 0)])
-  }
-}
-
-
-length(sort(tfidf[4,], decreasing = T)[which(sort(tfidf[4,], decreasing = T) != 0)])
-
-tfidf <- ttf
 
 for(i in 1:11340){
   n <- round(length(which(tfidf[i,] != 0)) * 0.5)
@@ -321,22 +280,18 @@ for(i in 1:136){
     sm[1,i] <- sum(tfidf[,i])
 }
 
-med <- median(sm[1,]) ####$%^&^$%*&^&(*_%$#*(&^_))
+med <- median(sm[1,])
 featureselected <- tfidf[,-which(sm < med)]
 
-write.csv(featureselected, file = "featureselected.csv", row.names=F)
+# write.csv(featureselected, file = "featureselected.csv", row.names=F)
 featureselected <- read.csv(file = "featureselected.csv")
 
+################### Tasks 3 : Build classifiers ################### 
 
-##############
 colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
              "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
 
 top10 <- cbind(featureselected, my_data[colname])
-
-# top10 <- as.factor(top10)
-
-# top10[,69]
 
 train <- top10[which(my_data$purpose == "train"),]
 test <- top10[which(my_data$purpose == "test"),]
@@ -351,7 +306,7 @@ for(i in 1:10){
   colnames(testy)[i] = "class"
 }
 
-write.csv(top10, file = "top10v2.csv", row.names=F)
+# write.csv(top10, file = "top10v2.csv", row.names=F)
 
 # SVM
 
@@ -373,7 +328,6 @@ for(i in 1:10){
   cat("-------------------\n")
 }
 
-
 # naiveBayes
 
 for(i in 1:10){
@@ -394,8 +348,7 @@ for(i in 1:10){
   cat("-------------------\n")
 }
 
-
-# naiveBayes
+# randomForest
 
 for(i in 1:10){
   
@@ -405,7 +358,7 @@ for(i in 1:10){
   test1 <- cbind(testx,testy[i])
   test1[,69] <- as.factor(test1[,69])
   
-  model <- naiveBayes(train1$class ~ ., data = train1)
+  model <- randomForest(train1$class ~ ., data = train1, maxnodes = 4, ntree = 30)
   p <- predict(model, test1[,-ncol(test1)])
   t <- table(p, test1$class)
   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
@@ -415,7 +368,7 @@ for(i in 1:10){
   cat("-------------------\n")
 }
 
-##############
+############################################################################################################################
 
 
 sort(tfidf[1,], decreasing = T)
