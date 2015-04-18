@@ -308,6 +308,10 @@ for(i in 1:10){
 
 # write.csv(top10, file = "top10v2.csv", row.names=F)
 
+rname <- c("SVM", "naiveBayes", "randomForest")
+cname <- colname
+result <- matrix(0, 3, 10, dimnames = list(rname, cname))
+
 # SVM
 
 for(i in 1:10){
@@ -322,6 +326,7 @@ for(i in 1:10){
   p <- predict(model, test1[,-ncol(test1)])
   t <- table(p, test1$class)
   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  result[1,i] <- acc
   print(colname[i])
   print(t)
   print(acc)
@@ -342,6 +347,7 @@ for(i in 1:10){
   p <- predict(model, test1[,-ncol(test1)])
   t <- table(p, test1$class)
   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  result[2,i] <- acc
   print(colname[i])
   print(t)
   print(acc)
@@ -362,11 +368,14 @@ for(i in 1:10){
   p <- predict(model, test1[,-ncol(test1)])
   t <- table(p, test1$class)
   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
+  result[3,i] <- acc
   print(colname[i])
   print(t)
   print(acc)
   cat("-------------------\n")
 }
+
+write.csv(result, file = "result.csv")
 
 ############################################################################################################################
 
