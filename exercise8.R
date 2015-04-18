@@ -214,7 +214,6 @@ for(i in 1: 11340){
 
 ################### Tasks 2 : Feature representations ################### 
 
-# aa <- my_data
 doc.vec <- VectorSource(my_data[,126])
 doc.corpus <- Corpus(doc.vec)
 dtm <- DocumentTermMatrix(doc.corpus)
@@ -223,7 +222,6 @@ dtm <- DocumentTermMatrix(doc.corpus)
 # findFreqTerms(dtm, lowfreq = 2000, highfreq = 3000)
 # findAssocs(dtm,'opec',0.5)
 dtm2 <- removeSparseTerms(dtm,sparse=0.95)
-# inspect(dtm2[10:15,100:110])
 
 featureMx <- inspect(dtm2)
 
