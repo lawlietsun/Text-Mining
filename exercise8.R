@@ -241,9 +241,6 @@ doc.vec <- VectorSource(finaldata[,120])
 doc.corpus <- Corpus(doc.vec)
 dtm <- DocumentTermMatrix(doc.corpus)
 
-# inspect(dtm[1:5,1:10])
-# findFreqTerms(dtm, lowfreq = 2000, highfreq = 3000)
-# findAssocs(dtm,'opec',0.5)
 dtm2 <- removeSparseTerms(dtm,sparse=0.95)
 
 sss <- apply(dtm2,1,sum)
@@ -484,46 +481,6 @@ final_final_lda_myfeature <- fmx
 
 write.csv(final_final_lda_myfeature, file = "final_final_lda_myfeaturev4.csv", row.names=F)
 
-# 
-# # Remove no topic docs
-# a <- c()
-# for(i in 1:10777){
-#   if(sum(top10[i,69:78]) == 0){
-#     a <- c(a,i)
-#     k = k+1
-#   }
-#   print(i)
-# }
-# top10 <- top10[-a,]
-# 
-# # purpose!!!!!!!!! removed by exicident
-# 
-# a <- top10 
-# a <- c(a, my_data$purpose)
-# a <- cbind( my_data$purpose,a)
-# colnames(a)[1] = "purpose"
-# 
-# 
-# 
-# # combine classes/ topics
-# mx <- c()
-# mx <- a
-# 
-# fmx <- c()
-# for(i in 1:9042){
-#   for(j in 70:79){
-#     if(mx[i,j] == 1){
-#       cs <- names(mx[,1:79])[j]
-#       fmx <- rbind(fmx, cbind(mx[i,1:69], cs))
-#     }
-#   }
-#   print(i)
-# }
-# 
-# colnames(fmx)[70] <- "class"
-# 
-# write.csv(fmx, file = "multiclassv3.csv", row.names=F)
-
 ################### Tasks 3 : Build classifiers ################### 
 
 finaldata <- finalldamx
@@ -535,9 +492,6 @@ test <- finaldata[which(finaldata$purpose == "test"),]
 train <- train[,-1]
 test <- test[,-1]
 
-# rname <- c("SVM", "naiveBayes", "randomForest")
-# cname <- colname
-# result <- matrix(0, 3, 10, dimnames = list(rname, cname))
 datamining <- function(model){
   totalt <- matrix(0,10,8)
   totalmytable <- matrix(0,10,8)
@@ -560,31 +514,6 @@ datamining <- function(model){
            t <- table(pn, test$class)
          }
   )
-  
-#   # SVM
-#   model <- svm(train$class ~ ., data = train, scale=F)
-#   
-#   # naiveBayes
-#   model <- naiveBayes(train$class ~ ., data = train)
-#   
-#   # randomForest
-#   model <- randomForest(train$class ~ ., data = train, maxnodes=4, ntree=30)
-#   
-#   p <- predict(model, test[,-ncol(test)])
-#   t <- table(p, test$class)
-#   
-#   ptrue = 0
-#   for(i in 1:10){
-#     ptrue = ptrue + t[i,i]
-#   }
-#   acc <- ptrue / nrow(test)
-
-
-  # result[1,i] <- acc
-  # print(colname[i])
-  # print(t)
-  # print(acc)
-  # cat("-------------------\n")
   
   # TABLE #
   mytable <- matrix(0,10,8)
@@ -638,114 +567,12 @@ datamining <- function(model){
   print(mytable)
   
   print(t)
-#   print(totalmytable)
-#   print(totalt)
   cat("Total Accuracy : ", sum(totalmytable[,7], na.rm = TRUE))
 }
 
-################################# IGNORE ###############################################################################
-#   
-# 
-# # naiveBayes
-# 
-# # TABLE #
-# mytable2 <- matrix(0,10,8)
-# rownames(mytable2) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-#                        "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-# colnames(mytable2) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
-# 
-# 
-# for(i in 1:10){
-#   
-#   train1 <- cbind(trainx,trainy[i])
-#   train1[,69] <- as.factor(train1[,69])
-#   
-#   test1 <- cbind(testx,testy[i])
-#   test1[,69] <- as.factor(test1[,69])
-#   
-#   model <- naiveBayes(train$class ~ ., data = train)
-#   p <- predict(model, test[,-ncol(test)])
-#   t <- table(p, test$class)
-#   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
-#   result[2,i] <- acc
-#   print(colname[i])
-#   print(t)
-#   print(acc)
-#   cat("-------------------\n")
-#   
-#   
-#   #   for(j in 1:ncol(t)){
-#   tp <- t[1,1]
-#   tn <- t[2,2]
-#   #     fn <- sum(t[i,-i], na.rm = TRUE)
-#   #     fp <- sum(t[-i,i], na.rm = TRUE)
-#   fn <- t[1,2]
-#   fp <- t[2,1]
-#   recall <- tp/(tp + fn)
-#   precision <- tp/(tp + fp)
-#   fmeasure <- (2 * precision * recall)/(precision + recall)
-#   accuracy <- (tp + tn)/(tp + tn + fn + fp)
-#   
-#   mytable2[i,1] <- tp
-#   mytable2[i,2] <- tn
-#   mytable2[i,3] <- fn
-#   mytable2[i,4] <- fp
-#   mytable2[i,5] <- recall
-#   mytable2[i,6] <- precision
-#   mytable2[i,7] <- accuracy
-#   mytable2[i,8] <- fmeasure
-# }
-# 
-# # randomForest
-# 
-# 
-# # TABLE #
-# mytable3 <- matrix(0,10,8)
-# rownames(mytable3) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-#                        "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-# colnames(mytable3) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
-# 
-# for(i in 1:10){
-#   
-#   train1 <- cbind(trainx,trainy[i])
-#   train1[,69] <- as.factor(train1[,69])
-#   
-#   test1 <- cbind(testx,testy[i])
-#   test1[,69] <- as.factor(test1[,69])
-#   
-#   model <- randomForest(train$class ~ ., data = train)
-#   p <- predict(model, test[,-ncol(test)])
-#   t <- table(p, test$class)
-#   acc <- (t[1,1] + t[2,2]) / (t[1,1] + t[1,2] + t[2,1] + t[2,2])
-#   result[3,i] <- acc
-#   print(colname[i])
-#   print(t)
-#   print(acc)
-#   cat("-------------------\n")
-#   
-#   #   for(j in 1:ncol(t)){
-#   tp <- t[1,1]
-#   tn <- t[2,2]
-#   #     fn <- sum(t[i,-i], na.rm = TRUE)
-#   #     fp <- sum(t[-i,i], na.rm = TRUE)
-#   fn <- t[1,2]
-#   fp <- t[2,1]
-#   recall <- tp/(tp + fn)
-#   precision <- tp/(tp + fp)
-#   fmeasure <- (2 * precision * recall)/(precision + recall)
-#   accuracy <- (tp + tn)/(tp + tn + fn + fp)
-#   
-#   mytable3[i,1] <- tp
-#   mytable3[i,2] <- tn
-#   mytable3[i,3] <- fn
-#   mytable3[i,4] <- fp
-#   mytable3[i,5] <- recall
-#   mytable3[i,6] <- precision
-#   mytable3[i,7] <- accuracy
-#   mytable3[i,8] <- fmeasure
-# }
-
-# write.csv(result, file = "result.csv")
+datamining("SVM")
+datamining("naiveBayes")
+datamining("RandomForest")
 
 ############################################################################################################################
 km <- kmeans(top10, 10)
