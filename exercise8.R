@@ -535,57 +535,112 @@ test <- finaldata[which(finaldata$purpose == "test"),]
 train <- train[,-1]
 test <- test[,-1]
 
-rname <- c("SVM", "naiveBayes", "randomForest")
-cname <- colname
-result <- matrix(0, 3, 10, dimnames = list(rname, cname))
-
-# SVM
-model <- svm(train$class ~ ., data = train, scale=F)
-
-# naiveBayes
-model <- naiveBayes(train$class ~ ., data = train)
-
-# randomForest
-model <- randomForest(train$class ~ ., data = train)
-
-p <- predict(model, test[,-ncol(test)])
-t <- table(p, test$class)
-
-ptrue = 0
-for(i in 1:10){
-  ptrue = ptrue + t[i,i]
-}
-acc <- ptrue / nrow(test)
-result[1,i] <- acc
-print(colname[i])
-print(t)
-print(acc)
-cat("-------------------\n")
-
-# TABLE #
-mytable <- matrix(0,10,8)
-rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-                       "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
+# rname <- c("SVM", "naiveBayes", "randomForest")
+# cname <- colname
+# result <- matrix(0, 3, 10, dimnames = list(rname, cname))
+datamining <- function(model){
+  totalt <- matrix(0,10,8)
+  totalmytable <- matrix(0,10,8)
+  num_levels = length(levels(droplevels(train$class)))
   
-for(i in 1:ncol(t)){
-  tp <- t[i,i]
-  tn <- 0
-  fn <- sum(t[i,-i], na.rm = TRUE)
-  fp <- sum(t[-i,i], na.rm = TRUE)
-  recall <- tp/(tp + fn)
-  precision <- tp/(tp + fp)
-  fmeasure <- (2 * precision * recall)/(precision + recall)
-  accuracy <- (tp + tn)/nrow(test)
+  switch(model,
+         RandomForest = {
+           mr <- randomForest(train$class ~ . , data = train)
+           pr <- predict(mr, test[,-ncol(test)])
+           t <- table(pr, test$class)
+         },
+         SVM = {
+           ms <- svm(train$class ~ . , data = train, scale = FALSE)
+           ps <- predict(ms, test[,-ncol(test)])
+           t <- table(ps, test$class)
+         },
+         naiveBayes = {
+           mn <- naiveBayes(train$class ~ . , data = train)
+           pn <- predict(mn, test[,-ncol(test)])
+           t <- table(pn, test$class)
+         }
+  )
   
-  mytable[i,1] <- tp
-  mytable[i,2] <- tn
-  mytable[i,3] <- fn
-  mytable[i,4] <- fp
-  mytable[i,5] <- recall
-  mytable[i,6] <- precision
-  mytable[i,7] <- accuracy
-  mytable[i,8] <- fmeasure
+#   # SVM
+#   model <- svm(train$class ~ ., data = train, scale=F)
+#   
+#   # naiveBayes
+#   model <- naiveBayes(train$class ~ ., data = train)
+#   
+#   # randomForest
+#   model <- randomForest(train$class ~ ., data = train, maxnodes=4, ntree=30)
+#   
+#   p <- predict(model, test[,-ncol(test)])
+#   t <- table(p, test$class)
+#   
+#   ptrue = 0
+#   for(i in 1:10){
+#     ptrue = ptrue + t[i,i]
+#   }
+#   acc <- ptrue / nrow(test)
+
+
+  # result[1,i] <- acc
+  # print(colname[i])
+  # print(t)
+  # print(acc)
+  # cat("-------------------\n")
+  
+  # TABLE #
+  mytable <- matrix(0,10,8)
+  rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+                         "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+  colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
+  
+  for(i in 1:ncol(t)){
+    tp <- t[i,i]
+    tn <- 0
+    fn <- sum(t[i,-i], na.rm = TRUE)
+    fp <- sum(t[-i,i], na.rm = TRUE)
+    recall <- tp/(tp + fn)
+    precision <- tp/(tp + fp)
+    fmeasure <- (2 * precision * recall)/(precision + recall)
+    accuracy <- (tp + tn)/nrow(test)
+    
+    mytable[i,1] <- tp
+    mytable[i,2] <- tn
+    mytable[i,3] <- fn
+    mytable[i,4] <- fp
+    mytable[i,5] <- recall
+    mytable[i,6] <- precision
+    mytable[i,7] <- accuracy
+    mytable[i,8] <- fmeasure
+  }
+  
+  marco_recall = 0
+  macro_precision = 0
+  
+  for(i in 1:num_levels){
+    marco_recall <- marco_recall + mytable[i,1]/(mytable[i,1] + mytable[i,3])
+    macro_precision <- macro_precision + mytable[i,1]/(mytable[i,1] + mytable[i,4])
+  }
+  
+  marco_recall <- marco_recall/num_levels
+  macro_precision <- macro_precision/num_levels
+  
+  cat("\n Marco Recall : ", marco_recall)
+  cat("\n Macro Precision : ", macro_precision)
+  
+  mirco_recall <- sum((mytable[,1])/ sum(mytable[,c(1,3)]), na.rm = TRUE)
+  micro_precision <- sum((mytable[,1])/ sum(mytable[,c(1,4)]), na.rm = TRUE)
+  
+  cat("\n Mirco Recall : ", mirco_recall)
+  cat("\n Micro Precision : ", micro_precision)
+  cat("\n Accuracy : ", sum(mytable[,7], na.rm = TRUE))
+  cat("\n ")
+
+  totalmytable <- totalmytable + as.table(mytable)
+  print(mytable)
+  
+  print(t)
+#   print(totalmytable)
+#   print(totalt)
+  cat("Total Accuracy : ", sum(totalmytable[,7], na.rm = TRUE))
 }
 
 ################################# IGNORE ###############################################################################
