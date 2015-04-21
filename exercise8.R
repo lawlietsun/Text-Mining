@@ -9,6 +9,7 @@ install.packages("randomForest")
 install.packages("fpc")
 
 ################### Prepare ################### 
+
 setwd("~/Google Drive/MSc Data Analytics/Core/CS909 Data Mining/exercises/exercise8")
 
 require("NLP")
