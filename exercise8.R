@@ -7,6 +7,13 @@ install.packages("SnowballC")
 install.packages("topicmodels")
 install.packages("randomForest")
 install.packages("fpc")
+install.packages("NLP")
+install.packages("openNLP")
+install.packages("e1071")
+install.packages("fpc")
+install.packages("cluster") 
+install.packages("pvclust")
+install.packages("mclust")
 
 ################### Prepare ################### 
 
