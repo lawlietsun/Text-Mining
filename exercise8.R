@@ -21,6 +21,10 @@ require("SnowballC")
 require("topicmodels")
 require("e1071")
 require("randomForest")
+require("fpc")
+require("cluster") 
+require("pvclust")
+require("mclust")
 
 mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
 my_data <- read.csv(file="finalcleanv2.csv",header=T,sep=",")
@@ -29,6 +33,8 @@ featureselected <- read.csv(file = "featureselected.csv")
 top10 <- read.csv(file = "top10v2.csv")
 finalldamx <- read.csv(file = "finalldamx.csv")
 final_final_lda_myfeature <- read.csv(file = "final_final_lda_myfeaturev4.csv")
+clusterdata <- read.csv(file = "clusterdata.csv")
+
 
 write.csv(my_data, file = "finalcleanv2.csv", row.names=F)
 
@@ -278,6 +284,8 @@ ldamx[,67] <- as.factor(ldamx[,67])
 ldamx <-cbind(finaldata[,-120],ldamx)
 # colnames(ldamx)[1] = "purpose"
 
+culsterdata <- cbind(finaldata[,1], ldamx, featureselected)
+colnames(culsterdata)[1] = "purpose"
 # x <- c()
 # for(i in 1:11340){
 #   if(ldamx[i,1] == "not-used"){
@@ -310,6 +318,7 @@ t <- finalldamx[-rm,]
 
 finalldamx <- t
 
+#expand multiclasses
 fmx <- c()
 for(i in 1:9042){
   for(j in 2:11){
@@ -423,14 +432,16 @@ write.csv(final_lda_myfeature, file = "final_lda_myfeaturev2.csv", row.names=F)
 
 # merge duplucated colnames
 k <- final_lda_myfeature
+
+k <- culsterdata
 n = 1
-for(i in 12:128){
-  for(j in (i+1):128){
+for(i in 1:116){
+  for(j in (i+1):116){
     if(colnames(k)[i] == colnames(k)[j]){
       merge <- c()
       merge <- k[,i] + k[,j]
       k <- cbind(k, merge)
-      colnames(k)[129 + n] = colnames(k)[i]
+      colnames(k)[116 + n] = colnames(k)[i]
       n = n + 1
     }
   }
@@ -438,7 +449,7 @@ for(i in 12:128){
 
 # change value 2 to 1
 for(i in 1:nrow(k)){
-  for(j in 130:145){
+  for(j in 117:134){
     if(k[i,j] > 1){
       k[i,j] = 1
     }
@@ -447,8 +458,8 @@ for(i in 1:nrow(k)){
 }
 
 rmc <- c()
-for(i in 12:128){
-  for(j in 130:145){
+for(i in 1:116){
+  for(j in 117:134){
     if(colnames(k)[i] == colnames(k)[j]){
       rmc <- c(rmc, i)
     }
@@ -480,6 +491,10 @@ colnames(fmx)[104] <- "class"
 final_final_lda_myfeature <- fmx
 
 write.csv(final_final_lda_myfeature, file = "final_final_lda_myfeaturev4.csv", row.names=F)
+
+clusterdata <- k
+
+write.csv(clusterdata, file = "clusterdata.csv", row.names=F)
 
 ################### Tasks 3 : Build classifiers ################### 
 
@@ -574,10 +589,24 @@ datamining("SVM")
 datamining("naiveBayes")
 datamining("RandomForest")
 
-############################################################################################################################
-km <- kmeans(top10, 10)
+################### Tasks 4 : clustering ################### 
 
-table(km$cluster)
+clustersdata <- read.csv(file = "featureselectedv2.csv")
+
+clusterdata <- clusterdata[,-1]
+
+mydata <- clusterdata
+
+mydata <- na.omit(clusterdata) # listwise deletion of missing
+mydata <- scale(clusterdata) # standardize variables
+
+# Determine number of clusters
+wss <- (nrow(mydata)-1)*sum(apply(mydata,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(mydata, centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+
+
+
 
 # K-Means Clustering with 5 clusters
 fit <- kmeans(mydata, 5)
@@ -586,11 +615,56 @@ fit <- kmeans(mydata, 5)
 
 # vary parameters for most readable graph
 library(cluster) 
-clusplot(top10, km$cluster, color=TRUE, shade=TRUE, 
-         labels=2, lines=0)
+clusplot(mydata, fit$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
 
 # Centroid Plot against 1st 2 discriminant functions
 library(fpc)
-plotcluster(mydata, km$cluster)
+plotcluster(mydata, fit$cluster)
 
-data.frame(testx, km$cluster)
+
+
+# Model Based Clustering
+library(mclust)
+fit <- Mclust(mydata)
+plot(fit) # plot results 
+summary(fit) # display the best model
+
+
+
+
+
+
+
+km <- kmeans(clusterdata, 10)
+
+table(km$cluster)
+
+# K-Means Clustering with 5 clusters
+fit <- kmeans(clusterdata, 5)
+
+# Cluster Plot against 1st 2 principal components
+
+# vary parameters for most readable graph
+library(cluster) 
+clusplot(top10, km$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+# Centroid Plot against 1st 2 discriminant functions
+library(fpc)
+plotcluster(clusterdata, km$cluster)
+
+
+#
+# Ward Hierarchical Clustering
+d <- dist(clusterdata, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward.D") 
+plot(fit) # display dendogram
+groups <- cutree(fit, k=5) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters 
+rect.hclust(fit, k=5, border="red")
+# Ward Hierarchical Clustering with Bootstrapped p values
+library(pvclust)
+fit <- pvclust(clusterdata, method.hclust="ward.D",
+               method.dist="euclidean")
+plot(fit) # dendogram with p values
+# add rectangles around groups highly supported by the data
+pvrect(fit, alpha=.95)
