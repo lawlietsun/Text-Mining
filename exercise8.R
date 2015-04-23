@@ -14,6 +14,7 @@ install.packages("fpc")
 install.packages("cluster") 
 install.packages("pvclust")
 install.packages("mclust")
+install.packages("EMCluster")
 
 ################### Prepare ################### 
 
@@ -33,15 +34,18 @@ require("fpc")
 require("cluster") 
 require("pvclust")
 require("mclust")
+require("EMCluster")
 
 mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
 my_data <- read.csv(file="finalcleanv2.csv",header=T,sep=",")
+rmdata <- read.csv(file="1.cleanedData_10777_123.csv",header=T,sep=",")
 tfidf <- read.csv(file = "tfidf2.csv")
 featureselected <- read.csv(file = "featureselected.csv")
 top10 <- read.csv(file = "top10v2.csv")
 finalldamx <- read.csv(file = "finalldamx.csv")
 final_final_lda_myfeature <- read.csv(file = "final_final_lda_myfeaturev4.csv")
 clusterdata <- read.csv(file = "clusterdata.csv")
+alldatac <- read.csv(file = "alldata_alltopics.csv")
 
 
 write.csv(my_data, file = "finalcleanv2.csv", row.names=F)
@@ -73,10 +77,22 @@ for(j in 1:r){
 }
 rmdata <- rmdata[-rncol,]
 
-# write.csv(rmdata, file = "cleanedData.csv", row.names=F)
+# Revmove un-used data
+x <- c()
+for(i in 1:nrow(rmdata)){
+  if(rmdata[i,3] == "not-used"){
+    x <- c(x,i)
+  }
+  print(i)
+}
+rmdata <- rmdata[-x,]
 
-my_data[, "cleaned.title"] <- NA
-my_data[, "cleaned.text"] <- NA
+# write.csv(rmdata, file = "1.cleanedData_10777_123.csv", row.names=F)
+
+my_data <- rmdata
+
+my_data[, "doc.title.text.cleaned"] <- NA
+# my_data[, "cleaned.text"] <- NA
 
 r <- nrow(my_data)
 c <- ncol(my_data)
@@ -89,11 +105,22 @@ location_annotator <- Maxent_Entity_Annotator(kind = "location")
 organization_annotator <- Maxent_Entity_Annotator(kind = "organization")
 date_annotator <- Maxent_Entity_Annotator(kind = "date")
 
+# combine text and title
+for(i in 1:r)){
+  title <- as.String(my_data$doc.title[i])
+  text <- as.String(my_data$doc.text[i])
+  title_text <- as.String(c(title,text))
+  
+  my_data[i,ncol(my_data)] <- title_text
+  
+  print(i)
+}
+
 for(ii in 1:r){
   
-  if(my_data[ii,122] != ""){
+  if(my_data[ii,c] != ""){
     
-    s <- my_data[ii,122]
+    s <- my_data[ii,c]
     s <- as.String(s)
     
     # 1. Tokenize: divide into words (unigrams)
@@ -203,79 +230,30 @@ for(ii in 1:r){
 
 # write.csv(my_data, file = "cleanedDatav6.csv", row.names=F)
 
-# check NA
-which((which(my_data[,122] == "") == which(is.na(my_data[,124]))) == FALSE)
-
-which((which(my_data[,123] == "") == which(is.na(my_data[,125]))) == FALSE)
-
-i = 0
-n = 0
-for(i in 1:11340){
-  if(my_data[i,122] == "" && is.na(my_data[i,124])){
-    n = n + 1
-  }
-}
-
-i = 0
-n = 0
-for(i in 1:11340){
-  if(is.na(my_data[i,124])){
-    n = n + 1
-  }
-}
-
-# combine text and title
-my_data[, "doc.title.text.cleaned"] <- NA
-
-for(i in 1: 11340){
-  s1 <- as.String(my_data[i,124])
-  s2 <- as.String(my_data[i,125])
-  s3 <- as.String(c(s1,s2))
-  s3 <- gsub("[[:punct:]]", "", s3)
-  my_data[i,126] <- s3
-}
-
-# Revmove un-used data
-
-x <- c()
-for(i in 1:11340){
-  if(my_data[i,3] == "not-used"){
-    x <- c(x,i)
-  }
-  print(i)
-}
-
-my_data <- my_data[-x,]
-
 ################### Tasks 2 : Feature representations LDA ONLY ################### 
 
-finaldata <- my_data[-c(1:2,122:125)]
+finaldata <- my_data
 
-doc.vec <- VectorSource(finaldata[,120])
+doc.vec <- VectorSource(finaldata[,ncol(finaldata)])
 doc.corpus <- Corpus(doc.vec)
 dtm <- DocumentTermMatrix(doc.corpus)
 
-dtm2 <- removeSparseTerms(dtm,sparse=0.95)
-
-sss <- apply(dtm2,1,sum)
-dtm3 = dtm2[-which(sss == 0),]
-inspect(dtm3[1:100,100:110])
 
 lda <- LDA(dtm, method = "VEM", control = list(alpha = 0.1), k = 10)
-topics(lda)
+# topics(lda)
 ldafeatures <- terms(lda,10)
 ldafeaturesstr <- as.String(ldafeatures)
 spans <- whitespace_tokenizer(ldafeaturesstr)
 tokens <- ldafeaturesstr[spans]
 tokens <- gsub("[[:punct:]]", "", tokens)
-unique(tokens)
+# unique(tokens)
 
-ldamx <- matrix(0,10777,length(unique(tokens))+1)
+ldamx <- matrix(0,nrow(finaldata),length(unique(tokens))+1)
 ldamx <- as.data.frame(ldamx)
 colnames(ldamx) <- c(unique(tokens), "topic")
 ldamx$topic <- topics(lda)
 
-for(i in 1:10777){
+for(i in 1:nrow(finaldata)){
     topicnum <- ldamx$topic[i]
     colnum <- match(ldafeatures[,topicnum],unique(tokens))
     for(k in colnum){
@@ -284,38 +262,16 @@ for(i in 1:10777){
 print(i)
 }
 
-write.csv(ldamx, file = "ldamxv5.csv", row.names=F)
-ldamx <- read.csv(file = "ldamx.csv")
-ldamx[,67] <- as.factor(ldamx[,67])
+colname <- c("purpose","topic.earn", "topic.acq", "topic.money.fx", 
+             "topic.grain", "topic.crude", "topic.trade", "topic.interest", 
+             "topic.ship", "topic.wheat", "topic.corn")
 
-# purpose!!!!!!!!! removed by exicident
-ldamx <-cbind(finaldata[,-120],ldamx)
-# colnames(ldamx)[1] = "purpose"
+finalldamx <- cbind(rmdata[colname],ldamx)
+colnames(finalldamx)[ncol(finalldamx)] = "class"
 
-culsterdata <- cbind(finaldata[,1], ldamx, featureselected)
-colnames(culsterdata)[1] = "purpose"
-# x <- c()
-# for(i in 1:11340){
-#   if(ldamx[i,1] == "not-used"){
-#     x <- c(x,i)
-#   }
-#   print(i)
-# }
-
-ldamx <- ldamx[-x,]
-
-colnames(ldamx)[169] = "class"
-
-colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-             "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-
-finalldamx <- cbind(ldamx[,1],ldamx[colname],ldamx[,120:169])
-colnames(finalldamx)[1] = "purpose"
-
-finalldamx <- finalldamx[,-ncol(finalldamx)]
 
 rm <- c()
-for(i in 1:10777){
+for(i in 1:nrow(finalldamx)){
   if(sum(finalldamx[i,2:11]) == 0){
     rm <- c(rm, i)
   }
@@ -328,7 +284,7 @@ finalldamx <- t
 
 #expand multiclasses
 fmx <- c()
-for(i in 1:9042){
+for(i in 1:nrow(finalldamx)){
   for(j in 2:11){
     if(finalldamx[i,j] == 1){
       cs <- colnames(finalldamx)[j]
@@ -338,21 +294,11 @@ for(i in 1:9042){
   print(i)
 }
 
-write.csv(fmx, file = "fmxv1.csv", row.names=F)
+f <- fmx[,-(ncol(fmx)-1)]
+colnames(f)[ncol(f)] <- "class"
+lda <- f
 
-t <- fmx[,-51]
-
-colnames(t)[51] = "class"
-
-fmx <- t
-
-write.csv(fmx, file = "fmxv2.csv", row.names=F)
-
-finalldamx <- fmx
-# svm(finalldamx)
-
-
-write.csv(finalldamx, file = "finalldamx.csv", row.names=F)
+write.csv(lda, file = "lda_9990_50.csv", row.names=F)
 
 ################### Tasks 2 : Feature representations LDA + MyFeature ################### 
 
@@ -362,18 +308,18 @@ featureMx <- inspect(dtm2)
 
 tf2 <- featureMx * 0
 
-for(i in 1:10777){
-  for(j in 1:131){
+for(i in 1:nrow(tf2)){
+  for(j in 1:ncol(tf2)){
     tf2[i,j] <- featureMx[i,j] / max(featureMx[,j])
   }
   print(i)
 }
 
-df = matrix(0,1,131)
+df = matrix(0,1,ncol(tf2))
 
-for(j in 1:131){
+for(j in 1:ncol(featureMx)){
   doc = 0
-  for(i in 1:10777){
+  for(i in 1:nrow(featureMx)){
     if(featureMx[i,j] != 0){
       doc = doc + 1
     }
@@ -599,25 +545,122 @@ datamining("RandomForest")
 
 ################### Tasks 4 : clustering ################### 
 
-clustersdata <- read.csv(file = "featureselectedv2.csv")
+cd <- clusterdata
 
-clusterdata <- clusterdata[,-1]
+alldata <- cbind(my_data[,3],my_data[,4:121], clusterdata[,-1])
 
-mydata <- clusterdata
+colnames(alldata)[1] = "purpose"
 
-mydata <- na.omit(clusterdata) # listwise deletion of missing
-mydata <- scale(clusterdata) # standardize variables
+
+alldatac <- c()
+for(i in 1:10777){
+  for(j in 2:119){
+    if(alldata[i,j] == 1){
+      cs <- colnames(alldata)[j]
+      alldatac <- rbind(alldatac, cbind(alldata[i,1], alldata[i,120:217], cs))
+    }
+  }
+  print(i)
+}
+
+colnames(alldatac)[1] = "purpose"
+
+colnames(alldatac)[100] = "class"
+
+write.csv(alldatac, file = "alldata_alltopics.csv", row.names=F)
+
+md <- alldatac[,-1]
+
+md10 <- final_final_lda_myfeature[,-1] 
+
+test <- md10
+
+for(i in 2:13341){
+  rownames(test)[i] <- as.String(test[i,99])
+  print(i)
+}
 
 # Determine number of clusters
-wss <- (nrow(mydata)-1)*sum(apply(mydata,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(mydata, centers=i)$withinss)
+wss <- (nrow(md)-1)*sum(apply(md,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(md, centers=i)$withinss)
 plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+
+
+# Ward Hierarchical Clustering
+d <- dist(test) # distance matrix
+dd <- dist(as.matrix(md[,-99])) # distance matrix
+ddd <- dist(as.matrix(md[1:50,-99])) # distance matrix
+fit <- hclust(d)
+fit2 <- hclust(ddd, method="ward")
+plot(fit) # display dendogram
+groups <- cutree(fit, k=10) # cut tree into 5 clusters
+# draw dendogram with red borders around the 5 clusters 
+rect.hclust(fit, k=10, border="red")
+
+test <- cbind(md10, groups)
+
+a <- test[,103:104]
+
+a[which(a$groups == 1),]
+
+t <- table(a)
+t <- as.data.frame(t)
+
+nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
+
+
+# TABLE #
+mytable <- matrix(0,10,8)
+rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+                       "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
+
+for(i in 1:ncol(nt)){
+  tp <- nt[i,i]
+  tn <- 0
+  fn <- sum(nt[i,-i], na.rm = TRUE)
+  fp <- sum(nt[-i,i], na.rm = TRUE)
+  recall <- tp/(tp + fn)
+  precision <- tp/(tp + fp)
+  fmeasure <- (2 * precision * recall)/(precision + recall)
+  accuracy <- (tp + tn)/nrow(test)
+  
+  mytable[i,1] <- tp
+  mytable[i,2] <- tn
+  mytable[i,3] <- fn
+  mytable[i,4] <- fp
+  mytable[i,5] <- recall
+  mytable[i,6] <- precision
+  mytable[i,7] <- accuracy
+  mytable[i,8] <- fmeasure
+}
+
+sum(mytable[,7], na.rm = TRUE)
+
+colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+             "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+
+
+
+clustersdata <- read.csv(file = "featureselectedv2.csv")
+
 
 
 
 
 # K-Means Clustering with 5 clusters
-fit <- kmeans(mydata, 5)
+fit <- kmeans(test[,-103], 10)
+library(cluster) 
+clusplot(test[,-103], fit$cluster)
+library(fpc)
+plotcluster(test[,-103], fit$cluster)
+plot(fit)
+a <- cbind(test, fit$cluster)
+a <- a[,103:104]
+t <- table(a)
+nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
+
+
 
 # Cluster Plot against 1st 2 principal components
 
@@ -659,6 +702,9 @@ clusplot(top10, km$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
 # Centroid Plot against 1st 2 discriminant functions
 library(fpc)
 plotcluster(clusterdata, km$cluster)
+
+
+
 
 
 #
