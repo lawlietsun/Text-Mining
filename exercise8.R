@@ -47,7 +47,6 @@ final_final_lda_myfeature <- read.csv(file = "final_final_lda_myfeaturev4.csv")
 clusterdata <- read.csv(file = "clusterdata.csv")
 alldatac <- read.csv(file = "alldata_alltopics.csv")
 
-
 write.csv(my_data, file = "finalcleanv2.csv", row.names=F)
 
 ################### Tasks 1 : Pre-Prosessing ################### 
@@ -454,6 +453,7 @@ write.csv(clusterdata, file = "clusterdata.csv", row.names=F)
 
 finaldata <- finalldamx
 finaldata <- final_final_lda_myfeature
+finaldata1 <- finaldata[,-1]
 
 train <- finaldata[which(finaldata$purpose == "train"),]
 test <- finaldata[which(finaldata$purpose == "test"),]
@@ -461,7 +461,7 @@ test <- finaldata[which(finaldata$purpose == "test"),]
 train <- train[,-1]
 test <- test[,-1]
 
-datamining <- function(model){
+datamining <- function(k, model){
   totalt <- matrix(0,10,8)
   totalmytable <- matrix(0,10,8)
   num_levels = length(levels(droplevels(train$class)))
@@ -510,30 +510,12 @@ datamining <- function(model){
     mytable[i,8] <- fmeasure
   }
   
-  marco_recall = 0
-  macro_precision = 0
   
-  for(i in 1:num_levels){
-    marco_recall <- marco_recall + mytable[i,1]/(mytable[i,1] + mytable[i,3])
-    macro_precision <- macro_precision + mytable[i,1]/(mytable[i,1] + mytable[i,4])
   }
   
-  marco_recall <- marco_recall/num_levels
-  macro_precision <- macro_precision/num_levels
-  
-  cat("\n Marco Recall : ", marco_recall)
-  cat("\n Macro Precision : ", macro_precision)
-  
-  mirco_recall <- sum((mytable[,1])/ sum(mytable[,c(1,3)]), na.rm = TRUE)
   micro_precision <- sum((mytable[,1])/ sum(mytable[,c(1,4)]), na.rm = TRUE)
   
-  cat("\n Mirco Recall : ", mirco_recall)
-  cat("\n Micro Precision : ", micro_precision)
-  cat("\n Accuracy : ", sum(mytable[,7], na.rm = TRUE))
-  cat("\n ")
 
-  totalmytable <- totalmytable + as.table(mytable)
-  print(mytable)
   
   print(t)
   cat("Total Accuracy : ", sum(totalmytable[,7], na.rm = TRUE))
@@ -545,38 +527,10 @@ datamining("RandomForest")
 
 ################### Tasks 4 : clustering ################### 
 
-cd <- clusterdata
-
-alldata <- cbind(my_data[,3],my_data[,4:121], clusterdata[,-1])
-
-colnames(alldata)[1] = "purpose"
-
-
-alldatac <- c()
-for(i in 1:10777){
-  for(j in 2:119){
-    if(alldata[i,j] == 1){
-      cs <- colnames(alldata)[j]
-      alldatac <- rbind(alldatac, cbind(alldata[i,1], alldata[i,120:217], cs))
-    }
-  }
-  print(i)
-}
-
-colnames(alldatac)[1] = "purpose"
-
-colnames(alldatac)[100] = "class"
-
 write.csv(alldatac, file = "alldata_alltopics.csv", row.names=F)
 
 md <- alldatac[,-1]
 
-md10 <- final_final_lda_myfeature[,-1] 
-
-test <- md10
-
-for(i in 2:13341){
-  rownames(test)[i] <- as.String(test[i,99])
   print(i)
 }
 
@@ -646,8 +600,6 @@ clustersdata <- read.csv(file = "featureselectedv2.csv")
 
 
 
-
-
 # K-Means Clustering with 5 clusters
 fit <- kmeans(test[,-103], 10)
 library(cluster) 
@@ -662,42 +614,8 @@ nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,
 
 
 
-# Cluster Plot against 1st 2 principal components
-
-# vary parameters for most readable graph
-library(cluster) 
-clusplot(mydata, fit$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
-
-# Centroid Plot against 1st 2 discriminant functions
-library(fpc)
-plotcluster(mydata, fit$cluster)
 
 
-
-# Model Based Clustering
-library(mclust)
-fit <- Mclust(mydata)
-plot(fit) # plot results 
-summary(fit) # display the best model
-
-
-
-
-
-
-
-km <- kmeans(clusterdata, 10)
-
-table(km$cluster)
-
-# K-Means Clustering with 5 clusters
-fit <- kmeans(clusterdata, 5)
-
-# Cluster Plot against 1st 2 principal components
-
-# vary parameters for most readable graph
-library(cluster) 
-clusplot(top10, km$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
 
 # Centroid Plot against 1st 2 discriminant functions
 library(fpc)
@@ -707,10 +625,6 @@ plotcluster(clusterdata, km$cluster)
 
 
 
-#
-# Ward Hierarchical Clustering
-d <- dist(clusterdata, method = "euclidean") # distance matrix
-fit <- hclust(d, method="ward.D") 
 plot(fit) # display dendogram
 groups <- cutree(fit, k=5) # cut tree into 5 clusters
 # draw dendogram with red borders around the 5 clusters 
