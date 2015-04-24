@@ -622,17 +622,13 @@ library(fpc)
 plotcluster(clusterdata, km$cluster)
 
 
+plot(mc, data=test, what=c('classification'),dimens=c(3,4))
+table(iris$Species, mc$classification)
 
 
+cluster <- dbscan(test, eps=0.6, MinPts=4)
+plot(cluster, sampleiris)
+plot(cluster, sampleiris[,c(1,4)])
+# Notice points in cluster 0 are unassigned outliers
+table(cluster$cluster, sampleiris$Species)
 
-plot(fit) # display dendogram
-groups <- cutree(fit, k=5) # cut tree into 5 clusters
-# draw dendogram with red borders around the 5 clusters 
-rect.hclust(fit, k=5, border="red")
-# Ward Hierarchical Clustering with Bootstrapped p values
-library(pvclust)
-fit <- pvclust(clusterdata, method.hclust="ward.D",
-               method.dist="euclidean")
-plot(fit) # dendogram with p values
-# add rectangles around groups highly supported by the data
-pvrect(fit, alpha=.95)
