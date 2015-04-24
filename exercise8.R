@@ -462,77 +462,125 @@ train <- train[,-1]
 test <- test[,-1]
 
 datamining <- function(k, model){
+  total_accuracy <- 0
   totalt <- matrix(0,10,8)
   totalmytable <- matrix(0,10,8)
-  num_levels = length(levels(droplevels(train$class)))
+  num_levels = length(levels(finaldata1$class))
   
-  switch(model,
-         RandomForest = {
-           mr <- randomForest(train$class ~ . , data = train)
-           pr <- predict(mr, test[,-ncol(test)])
-           t <- table(pr, test$class)
-         },
-         SVM = {
-           ms <- svm(train$class ~ . , data = train, scale = FALSE)
-           ps <- predict(ms, test[,-ncol(test)])
-           t <- table(ps, test$class)
-         },
-         naiveBayes = {
-           mn <- naiveBayes(train$class ~ . , data = train)
-           pn <- predict(mn, test[,-ncol(test)])
-           t <- table(pn, test$class)
-         }
-  )
+  ftable <- matrix(0,10,5)
+  rownames(ftable) <- c("fold 1", "fold 2", "fold 3", "fold 4", "fold 5", 
+                        "fold 6", "fold 7", "fold 8", "fold 9", "fold 10")
+  colnames(ftable) <- c("Marco Recall", "Macro Precision", "Mirco Recall", "Micro Precision", "Accuracy")
   
-  # TABLE #
-  mytable <- matrix(0,10,8)
-  rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-                         "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-  colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
-  
-  for(i in 1:ncol(t)){
-    tp <- t[i,i]
-    tn <- 0
-    fn <- sum(t[i,-i], na.rm = TRUE)
-    fp <- sum(t[-i,i], na.rm = TRUE)
-    recall <- tp/(tp + fn)
-    precision <- tp/(tp + fp)
-    fmeasure <- (2 * precision * recall)/(precision + recall)
-    accuracy <- (tp + tn)/nrow(test)
+  for(kdx in 1:k){
+    test <- c()
+    for(i in 1:num_levels){
+      v <- finaldata1[which(finaldata1$class == levels(finaldata1$class)[i]),]
+      if(kdx == 1){
+        idx <- sample(k, nrow(v), replace = TRUE)
+      }
+      test <- rbind(test, v[idx == kdx,])
+    }
+    test <- na.omit(test)
+    train <- finaldata1[-as.numeric(rownames(test)),]
     
-    mytable[i,1] <- tp
-    mytable[i,2] <- tn
-    mytable[i,3] <- fn
-    mytable[i,4] <- fp
-    mytable[i,5] <- recall
-    mytable[i,6] <- precision
-    mytable[i,7] <- accuracy
-    mytable[i,8] <- fmeasure
-  }
-  
-  
-  }
-  
-  micro_precision <- sum((mytable[,1])/ sum(mytable[,c(1,4)]), na.rm = TRUE)
-  
+    switch(model,
+           RandomForest = {
+             mr <- randomForest(train$class ~ . , data = train)
+             pr <- predict(mr, test[,-ncol(test)])
+             t <- table(pr, test$class)
+           },
+           SVM = {
+             ms <- svm(train$class ~ . , data = train, scale = FALSE)
+             ps <- predict(ms, test[,-ncol(test)])
+             t <- table(ps, test$class)
+           },
+           naiveBayes = {
+             mn <- naiveBayes(train$class ~ . , data = train)
+             pn <- predict(mn, test[,-ncol(test)])
+             t <- table(pn, test$class)
+           }
+    )
+    
+    cat("\n fold : ", kdx)
+    print(t)
+    
+    # TABLE #
+    mytable <- matrix(0,10,8)
+    rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+                           "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+    colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
+    
+    for(i in 1:ncol(t)){
+      tp <- t[i,i]
+      tn <- 0
+      fn <- sum(t[i,-i], na.rm = TRUE)
+      fp <- sum(t[-i,i], na.rm = TRUE)
+      recall <- tp/(tp + fn)
+      precision <- tp/(tp + fp)
+      fmeasure <- (2 * precision * recall)/(precision + recall)
+      accuracy <- (tp + tn)/nrow(test)
+      
+      mytable[i,1] <- tp
+      mytable[i,2] <- tn
+      mytable[i,3] <- fn
+      mytable[i,4] <- fp
+      mytable[i,5] <- recall
+      mytable[i,6] <- precision
+      mytable[i,7] <- accuracy
+      mytable[i,8] <- fmeasure
+    }
+    
+    marco_recall = 0
+    macro_precision = 0
+    
+    for(i in 1:num_levels){
+      marco_recall <- marco_recall + mytable[i,1]/(mytable[i,1] + mytable[i,3])
+      macro_precision <- macro_precision + mytable[i,1]/(mytable[i,1] + mytable[i,4])
+    }
+    
+    marco_recall <- marco_recall/num_levels
+    macro_precision <- macro_precision/num_levels
+    
+    cat("\n Marco Recall : ", marco_recall)
+    cat("\n Macro Precision : ", macro_precision)
+    
+    mirco_recall <- sum((mytable[,1])/ sum(mytable[,c(1,3)]), na.rm = TRUE)
+    micro_precision <- sum((mytable[,1])/ sum(mytable[,c(1,4)]), na.rm = TRUE)
+    
+    cat("\n Mirco Recall : ", mirco_recall)
+    cat("\n Micro Precision : ", micro_precision)
+    accuracy <- sum(mytable[,7], na.rm = TRUE)
+    cat("\n Accuracy : ", sum(mytable[,7], na.rm = TRUE))
+    cat("\n ")
+    
+    totalmytable <- totalmytable + as.table(mytable)
+    print(mytable)
+    
+    total_accuracy <- total_accuracy + accuracy
+    
+    ftable[kdx,1] <- marco_recall
+    ftable[kdx,2] <- macro_precision
+    ftable[kdx,3] <- mirco_recall
+    ftable[kdx,4] <- micro_precision
+    ftable[kdx,5] <- accuracy    
 
+  }
+
+  print(ftable)
+  cat("Average Accuracy : ", total_accuracy/10)
   
-  print(t)
-  cat("Total Accuracy : ", sum(totalmytable[,7], na.rm = TRUE))
 }
 
-datamining("SVM")
-datamining("naiveBayes")
-datamining("RandomForest")
+datamining(10, "SVM")
+datamining(10, "naiveBayes")
+datamining(10, "RandomForest")
 
 ################### Tasks 4 : clustering ################### 
 
-write.csv(alldatac, file = "alldata_alltopics.csv", row.names=F)
+md <- final_final_lda_myfeature[,-1]
 
-md <- alldatac[,-1]
-
-  print(i)
-}
+test <- md[,-ncol(md)]
 
 # Determine number of clusters
 wss <- (nrow(md)-1)*sum(apply(md,2,var))
@@ -547,9 +595,12 @@ ddd <- dist(as.matrix(md[1:50,-99])) # distance matrix
 fit <- hclust(d)
 fit2 <- hclust(ddd, method="ward")
 plot(fit) # display dendogram
+plot(fit, hang=-1, label=md$class)
 groups <- cutree(fit, k=10) # cut tree into 5 clusters
 # draw dendogram with red borders around the 5 clusters 
 rect.hclust(fit, k=10, border="red")
+cop<-cophenetic(fit)
+cor(cop,d)
 
 test <- cbind(md10, groups)
 
@@ -594,14 +645,11 @@ sum(mytable[,7], na.rm = TRUE)
 colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
              "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
 
-
-
 clustersdata <- read.csv(file = "featureselectedv2.csv")
 
-
-
 # K-Means Clustering with 5 clusters
-fit <- kmeans(test[,-103], 10)
+fit <- kmeans(test, 10)
+table(fit$cluster, md$class)
 library(cluster) 
 clusplot(test[,-103], fit$cluster)
 library(fpc)
@@ -612,16 +660,27 @@ a <- a[,103:104]
 t <- table(a)
 nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
 
+fit <- kmeans(test, 5)
+clusplot(test, fit$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
+
+wss <- (nrow(test)-1)*sum(apply(test,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(test, centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
 
 
+fit <- kmeans(test, 10) # 5 cluster solution
+aggregate(test,by=list(fit$cluster),FUN=mean)
+test <- data.frame(test, fit$cluster)
 
 
+d <- dist(test, method = "euclidean") # distance matrix
+fit <- hclust(d, method="ward.D2") 
+plot(fit) # display dendogram
+groups <- cutree(fit, k=5) # cut tree into 5 clusters
+rect.hclust(fit, k=5, border="red")
 
-# Centroid Plot against 1st 2 discriminant functions
-library(fpc)
-plotcluster(clusterdata, km$cluster)
 
-
+mc <- Mclust(test)
 plot(mc, data=test, what=c('classification'),dimens=c(3,4))
 table(iris$Species, mc$classification)
 
