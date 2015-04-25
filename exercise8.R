@@ -15,6 +15,7 @@ install.packages("cluster")
 install.packages("pvclust")
 install.packages("mclust")
 install.packages("EMCluster")
+install.packages("flexclust")
 
 ################### Prepare ################### 
 
@@ -35,6 +36,7 @@ require("cluster")
 require("pvclust")
 require("mclust")
 require("EMCluster")
+require("flexclust")
 
 mydata <- read.csv(file="reutersCSV.csv",header=T,sep=",")
 my_data <- read.csv(file="finalcleanv2.csv",header=T,sep=",")
@@ -253,12 +255,12 @@ colnames(ldamx) <- c(unique(tokens), "topic")
 ldamx$topic <- topics(lda)
 
 for(i in 1:nrow(finaldata)){
-    topicnum <- ldamx$topic[i]
-    colnum <- match(ldafeatures[,topicnum],unique(tokens))
-    for(k in colnum){
-      ldamx[i,k] <- 1
-    } 
-print(i)
+  topicnum <- ldamx$topic[i]
+  colnum <- match(ldafeatures[,topicnum],unique(tokens))
+  for(k in colnum){
+    ldamx[i,k] <- 1
+  } 
+  print(i)
 }
 
 colname <- c("purpose","topic.earn", "topic.acq", "topic.money.fx", 
@@ -329,8 +331,8 @@ for(j in 1:ncol(featureMx)){
 
 idf = matrix(0,1,131)
 for(j in 1:131){
- idf[1,j] <- log2(10777/df[1,j])
- print(j)
+  idf[1,j] <- log2(10777/df[1,j])
+  print(j)
 }
 
 ttf <- featureMx * 0
@@ -355,7 +357,7 @@ for(i in 1:10777){
 
 sm = matrix(0,1,131)
 for(i in 1:131){
-    sm[1,i] <- sum(tfidf[,i])
+  sm[1,i] <- sum(tfidf[,i])
 }
 
 med <- median(sm[1,])
@@ -451,6 +453,8 @@ write.csv(clusterdata, file = "clusterdata.csv", row.names=F)
 
 ################### Tasks 3 : Build classifiers ################### 
 
+# data
+
 finaldata <- finalldamx
 finaldata <- final_final_lda_myfeature
 finaldata1 <- finaldata[,-1]
@@ -461,15 +465,21 @@ test <- finaldata[which(finaldata$purpose == "test"),]
 train <- train[,-1]
 test <- test[,-1]
 
+# k-fold cross validation
+
 datamining <- function(k, model){
   total_accuracy <- 0
-  totalt <- matrix(0,10,8)
-  totalmytable <- matrix(0,10,8)
+  totalt <- matrix(0,k,8)
+  totalmytable <- matrix(0,k,8)
   num_levels = length(levels(finaldata1$class))
   
-  ftable <- matrix(0,10,5)
-  rownames(ftable) <- c("fold 1", "fold 2", "fold 3", "fold 4", "fold 5", 
-                        "fold 6", "fold 7", "fold 8", "fold 9", "fold 10")
+  ftable <- matrix(0,k,5)
+  ftable_names <- c()
+  
+  for(n in 1:k){
+    ftable_names <- c(ftable_names, as.String(paste("fold", n)))
+  }
+  rownames(ftable) <- ftable_names
   colnames(ftable) <- c("Marco Recall", "Macro Precision", "Mirco Recall", "Micro Precision", "Accuracy")
   
   for(kdx in 1:k){
@@ -486,19 +496,19 @@ datamining <- function(k, model){
     
     switch(model,
            RandomForest = {
-             mr <- randomForest(train$class ~ . , data = train)
-             pr <- predict(mr, test[,-ncol(test)])
-             t <- table(pr, test$class)
+             mr <- randomForest(train$class ~ . , data = train, maxnodes = 10, ntree = 30)
+             RandomForest <- predict(mr, test[,-ncol(test)])
+             t <- table(RandomForest, test$class)
            },
            SVM = {
              ms <- svm(train$class ~ . , data = train, scale = FALSE)
-             ps <- predict(ms, test[,-ncol(test)])
-             t <- table(ps, test$class)
+             svm <- predict(ms, test[,-ncol(test)])
+             t <- table(svm, test$class)
            },
            naiveBayes = {
              mn <- naiveBayes(train$class ~ . , data = train)
-             pn <- predict(mn, test[,-ncol(test)])
-             t <- table(pn, test$class)
+             naiveBayes <- predict(mn, test[,-ncol(test)])
+             t <- table(naiveBayes, test$class)
            }
     )
     
@@ -554,7 +564,7 @@ datamining <- function(k, model){
     cat("\n Accuracy : ", sum(mytable[,7], na.rm = TRUE))
     cat("\n ")
     
-    totalmytable <- totalmytable + as.table(mytable)
+    #     totalmytable <- totalmytable + as.table(mytable)
     print(mytable)
     
     total_accuracy <- total_accuracy + accuracy
@@ -564,11 +574,12 @@ datamining <- function(k, model){
     ftable[kdx,3] <- mirco_recall
     ftable[kdx,4] <- micro_precision
     ftable[kdx,5] <- accuracy    
-
+    
   }
-
+  
+  cat("\n ")
   print(ftable)
-  cat("Average Accuracy : ", total_accuracy/10)
+  cat("Average Accuracy : ", total_accuracy/k)
   
 }
 
@@ -582,112 +593,95 @@ md <- final_final_lda_myfeature[,-1]
 
 test <- md[,-ncol(md)]
 
-# Determine number of clusters
-wss <- (nrow(md)-1)*sum(apply(md,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(md, centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+# Hierarchical Clustering
+d <- dist(test, "euclidean")
 
-
-# Ward Hierarchical Clustering
-d <- dist(test) # distance matrix
-dd <- dist(as.matrix(md[,-99])) # distance matrix
-ddd <- dist(as.matrix(md[1:50,-99])) # distance matrix
-fit <- hclust(d)
-fit2 <- hclust(ddd, method="ward")
-plot(fit) # display dendogram
+fit_h <- hclust(d)
+plot(fit) 
 plot(fit, hang=-1, label=md$class)
-groups <- cutree(fit, k=10) # cut tree into 5 clusters
-# draw dendogram with red borders around the 5 clusters 
+memb <- cutree(fit, k=10)
 rect.hclust(fit, k=10, border="red")
-cop<-cophenetic(fit)
+cop <- cophenetic(fit)
 cor(cop,d)
 
-test <- cbind(md10, groups)
+# K-Means Clustering
+fit_k <- kmeans(test, 10)
+t <- table(md$class, fit_k$cluster)
+randIndex(t)
 
-a <- test[,103:104]
+sil<-silhouette(fit_k$cluster, d)
+plot(sil, col = "blue")
+plotcluster(test, fit_k$cluster)
 
-a[which(a$groups == 1),]
+# Model Based Clustering
+m_fit <- Mclust(test)
+plot(m_fit) # plot results 
+summary(m_fit) # display the best model
 
-t <- table(a)
-t <- as.data.frame(t)
-
-nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
-
-
-# TABLE #
-mytable <- matrix(0,10,8)
-rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-                       "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
-
-for(i in 1:ncol(nt)){
-  tp <- nt[i,i]
-  tn <- 0
-  fn <- sum(nt[i,-i], na.rm = TRUE)
-  fp <- sum(nt[-i,i], na.rm = TRUE)
-  recall <- tp/(tp + fn)
-  precision <- tp/(tp + fp)
-  fmeasure <- (2 * precision * recall)/(precision + recall)
-  accuracy <- (tp + tn)/nrow(test)
-  
-  mytable[i,1] <- tp
-  mytable[i,2] <- tn
-  mytable[i,3] <- fn
-  mytable[i,4] <- fp
-  mytable[i,5] <- recall
-  mytable[i,6] <- precision
-  mytable[i,7] <- accuracy
-  mytable[i,8] <- fmeasure
-}
-
-sum(mytable[,7], na.rm = TRUE)
-
-colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
-             "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
-
-clustersdata <- read.csv(file = "featureselectedv2.csv")
-
-# K-Means Clustering with 5 clusters
-fit <- kmeans(test, 10)
-table(fit$cluster, md$class)
-library(cluster) 
-clusplot(test[,-103], fit$cluster)
-library(fpc)
-plotcluster(test[,-103], fit$cluster)
-plot(fit)
-a <- cbind(test, fit$cluster)
-a <- a[,103:104]
-t <- table(a)
-nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
-
-fit <- kmeans(test, 5)
-clusplot(test, fit$cluster, color=TRUE, shade=TRUE, labels=2, lines=0)
-
-wss <- (nrow(test)-1)*sum(apply(test,2,var))
-for (i in 2:15) wss[i] <- sum(kmeans(test, centers=i)$withinss)
-plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
-
-
-fit <- kmeans(test, 10) # 5 cluster solution
-aggregate(test,by=list(fit$cluster),FUN=mean)
-test <- data.frame(test, fit$cluster)
-
-
-d <- dist(test, method = "euclidean") # distance matrix
-fit <- hclust(d, method="ward.D2") 
-plot(fit) # display dendogram
-groups <- cutree(fit, k=5) # cut tree into 5 clusters
-rect.hclust(fit, k=5, border="red")
-
-
-mc <- Mclust(test)
-plot(mc, data=test, what=c('classification'),dimens=c(3,4))
-table(iris$Species, mc$classification)
-
-
-cluster <- dbscan(test, eps=0.6, MinPts=4)
-plot(cluster, sampleiris)
-plot(cluster, sampleiris[,c(1,4)])
+# dbscan
+d_fit <- dbscan(test, eps=0.6, MinPts=4)
+plot(d_fit, test)
 # Notice points in cluster 0 are unassigned outliers
-table(cluster$cluster, sampleiris$Species)
+table(d_fit$cluster, md$class)
+cluster.stats(d, d_fit$cluster, fit_k$cluster)
 
+################################################################ 
+
+# 
+# test <- cbind(md10, groups)
+# 
+# a <- test[,103:104]
+# 
+# a[which(a$groups == 1),]
+# 
+# t <- table(a)
+# t <- as.data.frame(t)
+# 
+# nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
+# 
+# 
+# # TABLE #
+# mytable <- matrix(0,10,8)
+# rownames(mytable) <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+#                        "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+# colnames(mytable) <- c("TP", "TN", "FN", "FP", "Recall", "Precision", "Accuracy", "F-measure")
+# 
+# for(i in 1:ncol(nt)){
+#   tp <- nt[i,i]
+#   tn <- 0
+#   fn <- sum(nt[i,-i], na.rm = TRUE)
+#   fp <- sum(nt[-i,i], na.rm = TRUE)
+#   recall <- tp/(tp + fn)
+#   precision <- tp/(tp + fp)
+#   fmeasure <- (2 * precision * recall)/(precision + recall)
+#   accuracy <- (tp + tn)/nrow(test)
+#   
+#   mytable[i,1] <- tp
+#   mytable[i,2] <- tn
+#   mytable[i,3] <- fn
+#   mytable[i,4] <- fp
+#   mytable[i,5] <- recall
+#   mytable[i,6] <- precision
+#   mytable[i,7] <- accuracy
+#   mytable[i,8] <- fmeasure
+# }
+# 
+# sum(mytable[,7], na.rm = TRUE)
+# 
+# colname <- c("topic.earn", "topic.acq", "topic.money.fx", "topic.grain", "topic.crude", 
+#              "topic.trade", "topic.interest", "topic.ship", "topic.wheat", "topic.corn")
+# 
+# clustersdata <- read.csv(file = "featureselectedv2.csv")
+# 
+# # K-Means Clustering with 5 clusters
+# fit <- kmeans(test, 10)
+# table(fit$cluster, md$class)
+# library(cluster) 
+# clusplot(test[,-103], fit$cluster)
+# library(fpc)
+# plotcluster(test[,-103], fit$cluster)
+# plot(fit)
+# a <- cbind(test, fit$cluster)
+# a <- a[,103:104]
+# t <- table(a)
+# nt <- rbind(t[4,], t[1,], t[7,], t[5,], t[3,], t[9,], t[6,], t[8,], t[10,], t[2,])
